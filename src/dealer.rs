@@ -1,6 +1,6 @@
-use rand::{Rng, RngCore, thread_rng};
+use rand::{Rng, thread_rng};
 use std::cmp;
-use std::error::Error;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub enum Suit {
@@ -11,10 +11,10 @@ pub enum Suit {
 }
 
 impl Suit {
-    pub fn all_suits() -> Vec<Suit> {
+    pub fn all_suits() -> Vec<Rc<Suit>> {
         vec![
-            Suit::Hearts, Suit::Diamonds,
-            Suit::Clubs, Suit::Spades,
+            Rc::new(Suit::Hearts), Rc::new(Suit::Diamonds),
+            Rc::new(Suit::Clubs), Rc::new(Suit::Spades),
         ]
     }
 }
@@ -27,51 +27,79 @@ pub enum Rank {
 }
 
 impl Rank {
-    pub fn all_ranks() -> Vec<Rank> {
+    pub fn all_ranks() -> Vec<Rc<Rank>> {
         use Rank::*;
         vec![
-            Two, Three, Four, Five, Six,
-            Seven, Eight, Nine, Ten, Jack,
-            Queen, King, Ace,
+            Rc::new(Two), Rc::new(Three), Rc::new(Four), Rc::new(Five), Rc::new(Six),
+            Rc::new(Seven), Rc::new(Eight), Rc::new(Nine), Rc::new(Ten), Rc::new(Jack),
+            Rc::new(Queen), Rc::new(King), Rc::new(Ace),
         ]
     }
 }
 
 #[derive(Debug)]
-pub struct Card<'a > {
-    suit: &'a Suit,
-    rank: &'a Rank,
+pub struct Card {
+    suit: Rc<Suit>,
+    rank: Rc<Rank>,
 }
 
 #[derive(Debug)]
-pub struct Dealer<'a> {
-    pub deck: Vec<Card<'a>>,
+struct Deck {
+    cards: Vec<Card>,
 }
 
-impl Dealer<'_> {
-    pub fn new<'a>(suits: &'a [Suit], ranks: &'a [Rank]) -> Dealer<'a> {
-        Dealer { deck: Self::create_deck(suits, ranks) }
-    }
+impl Deck {
+    const DECK_SIZE: usize = 52;
+    pub fn build() -> Deck {
+        let mut cards = Vec::with_capacity(Deck::DECK_SIZE);
 
-    fn create_deck<'a>(suits: &'a [Suit], ranks: &'a [Rank]) -> Vec<Card<'a>> {
-        let mut deck = Vec::new();
+        let suits = &Suit::all_suits();
+        let ranks = &Rank::all_ranks();
 
         for suit in suits {
             for rank in ranks {
-                deck.push(
-                  Card { suit, rank }
+                cards.push(
+                    Card {
+                        suit: Rc::clone(suit),
+                        rank: Rc::clone(rank),
+                    }
                 );
             }
         }
 
-        deck
+        Deck { cards }
+    }
+}
+
+#[derive(Debug)]
+pub struct Dealer {
+    pub deck: Deck,
+}
+
+impl Dealer {
+    pub fn new() -> Dealer {
+        let mut deck = Deck::build();
+
+        // Shuffle three times initially
+        for _ in 0..3 {
+            Self::shuffle(&mut deck.cards);
+        }
+
+        Dealer { deck }
+    }
+
+    pub fn get_cards(&self) -> &Vec<Card> {
+        &self.deck.cards
     }
 
     pub fn shuffle_deck(&mut self) {
+        Self::shuffle(&mut self.deck.cards);
+    }
+
+    fn shuffle(deck: &mut Vec<Card>) {
         // Iterate over the vector from the last element to the first.
         // For each element at index i, generate a random index j such that 0 <= j <= i.
         // Swap the elements at indices i and j.
-        let deck = &mut self.deck;
         let size = deck.len();
         let mut rng = thread_rng();
         deck.reverse();
@@ -96,18 +124,25 @@ impl Dealer<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::dealer::{Dealer, Rank, Suit};
+    use crate::dealer::Dealer;
+    use crate::dealer::Deck;
 
-    // Test that shuffle works with no panics
     #[test]
-    fn test_shuffle() {
-        let suits = Suit::all_suits();
-        let ranks = Rank::all_ranks();
-        let mut dealer = Dealer::new(&suits, &ranks);
-        let size = &dealer.deck.len();
+    fn test_build_deck() {
+        let deck = Deck::build();
+        let expected_size = 52;
+
+        assert_eq!(&expected_size, &deck.cards.len());
+    }
+
+    #[test]
+    fn test_shuffle_deck() {
+        // Test that shuffle works with no panics
+        let mut dealer = Dealer::new();
+        let size = &dealer.deck.cards.len();
 
         dealer.shuffle_deck();
 
-        assert_eq!(size, &dealer.deck.len())
+        assert_eq!(size, &dealer.deck.cards.len())
     }
 }
