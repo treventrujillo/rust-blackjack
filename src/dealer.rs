@@ -40,17 +40,17 @@ impl Rank {
 #[derive(Debug)]
 pub struct Card {
     suit: Rc<Suit>,
-    rank: Rc<Rank>,
+    pub rank: Rc<Rank>,
 }
 
 #[derive(Debug)]
-struct Deck {
-    cards: Vec<Card>,
+pub struct Deck {
+    pub cards: Vec<Card>,
 }
 
 impl Deck {
     const DECK_SIZE: usize = 52;
-    pub fn build() -> Deck {
+    pub fn build() -> Self {
         let mut cards = Vec::with_capacity(Deck::DECK_SIZE);
 
         let suits = &Suit::all_suits();
@@ -77,7 +77,7 @@ pub struct Dealer {
 }
 
 impl Dealer {
-    pub fn new() -> Dealer {
+    pub fn new() -> Self {
         let mut deck = Deck::build();
 
         // Shuffle three times initially
@@ -88,18 +88,14 @@ impl Dealer {
         Dealer { deck }
     }
 
-    pub fn get_cards(&self) -> &Vec<Card> {
-        &self.deck.cards
-    }
-
     pub fn shuffle_deck(&mut self) {
         Self::shuffle(&mut self.deck.cards);
     }
 
     fn shuffle(deck: &mut Vec<Card>) {
-        // Iterate over the vector from the last element to the first.
-        // For each element at index i, generate a random index j such that 0 <= j <= i.
-        // Swap the elements at indices i and j.
+        // Iterate over the cards from the last to the first.
+        // For each card at index i, generate a random index j such that 0 <= j <= i.
+        // Swap the card at indices i and j.
         let size = deck.len();
         let mut rng = thread_rng();
         deck.reverse();
@@ -139,10 +135,14 @@ mod tests {
     fn test_shuffle_deck() {
         // Test that shuffle works with no panics
         let mut dealer = Dealer::new();
-        let size = &dealer.deck.cards.len();
 
         dealer.shuffle_deck();
 
-        assert_eq!(size, &dealer.deck.cards.len())
+        assert_eq!(&Deck::DECK_SIZE, &dealer.deck.cards.len());
+    }
+
+    #[test]
+    fn test_create_dealer() {
+        assert!(matches!(Some(Dealer::new()), Some(_)));
     }
 }

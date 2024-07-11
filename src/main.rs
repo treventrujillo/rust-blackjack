@@ -1,4 +1,9 @@
-use blackjack::run;
+mod blackjack;
+mod dealer;
+
 fn main() {
-    run()
+    match blackjack::play() {
+        Ok(_result) => print!("Round complete. Place your bets."),
+        Err(err) => print!("{}", err)
+    }
 }
