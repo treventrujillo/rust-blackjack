@@ -1,9 +1,11 @@
-use rand::{Rng, thread_rng};
 use std::cmp;
+use std::fmt::Debug;
 use std::rc::Rc;
 
+use rand::{Rng, thread_rng};
+
 #[derive(Debug)]
-pub enum Suit {
+enum Suit {
     Hearts,
     Diamonds,
     Clubs,
@@ -20,7 +22,7 @@ impl Suit {
 }
 
 #[derive(Debug)]
-pub enum Rank {
+enum Rank {
     Two, Three, Four, Five, Six,
     Seven, Eight, Nine, Ten, Jack,
     Queen, King, Ace,
@@ -71,6 +73,27 @@ impl Deck {
     }
 }
 
+pub struct Hand {
+    pub cards: Vec<Card>,
+}
+
+impl Hand {
+    const MAX_HAND_SIZE: usize = 10;
+    fn new() -> Self {
+        Self {
+            cards: Vec::with_capacity(Hand::MAX_HAND_SIZE),
+        }
+    }
+
+    fn get_score(&self) -> u32 {
+        let mut ranks = Vec::with_capacity(Hand::MAX_HAND_SIZE);
+        for card in &self.cards {
+            ranks.push(resolve_rank(&card.rank))
+        }
+        ranks.iter().sum()
+    }
+}
+
 #[derive(Debug)]
 pub struct Dealer {
     pub deck: Deck,
@@ -116,19 +139,75 @@ impl Dealer {
             deck.insert(random_index, first_card);
         }
     }
+
+    pub fn hit<'a>(&'a mut self, hand: &'a mut Hand) -> &mut Hand {
+        hand.cards.push(self.pop_card());
+        println!("Hit! New hand: {:?}", hand.get_score());
+        print_collection(&hand.cards);
+        hand
+    }
+
+    pub fn deal_new_hand(&mut self) -> (Hand, Hand) {
+        let mut dealer_hand = Hand::new();
+        let mut player_hand = Hand::new();
+
+        player_hand.cards.push(self.pop_card());
+        dealer_hand.cards.push(self.pop_card());
+
+        println!("Dealer's hand: {:?}", &dealer_hand.get_score());
+        print_collection(&dealer_hand.cards);
+
+        player_hand.cards.push(self.pop_card());
+        dealer_hand.cards.push(self.pop_card());
+
+        println!("Player's hand: {:?}", &dealer_hand.get_score());
+        print_collection(&dealer_hand.cards);
+
+        (dealer_hand, player_hand)
+    }
+
+    fn pop_card(&mut self) -> Card {
+        self.deck.cards.pop().unwrap()
+    }
+}
+
+fn print_collection<T: Debug>(collection: &[T]) {
+    for element in collection {
+        println!("{:?}", element);
+    }
+}
+
+fn resolve_rank(rank: &Rc<Rank>) -> u32 {
+    match &**rank {
+        Rank::Two => 2,
+        Rank::Three => 3,
+        Rank::Four => 4,
+        Rank::Five => 5,
+        Rank::Six => 6,
+        Rank::Seven => 7,
+        Rank::Eight => 8,
+        Rank::Nine => 9,
+        Rank::Ten => 10,
+        Rank::Jack => 10,
+        Rank::Queen => 10,
+        Rank::King => 10,
+        Rank::Ace => 11, // we'll have to handle aces specially
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::dealer::Dealer;
+    use std::rc::Rc;
+
+    use crate::dealer::{Dealer, Rank};
     use crate::dealer::Deck;
+
+    use super::*;
 
     #[test]
     fn test_build_deck() {
         let deck = Deck::build();
-        let expected_size = 52;
-
-        assert_eq!(&expected_size, &deck.cards.len());
+        assert_eq!(&Deck::DECK_SIZE, &deck.cards.len());
     }
 
     #[test]
@@ -144,5 +223,15 @@ mod tests {
     #[test]
     fn test_create_dealer() {
         assert!(matches!(Some(Dealer::new()), Some(_)));
+    }
+
+    #[test]
+    fn test_resolve_rank() {
+        let mut ranks = Vec::with_capacity(10);
+        for rank in &vec![Rc::new(Rank::Jack), Rc::new(Rank::Ace)] {
+            ranks.push(resolve_rank(rank));
+        }
+
+        assert_eq!(ranks, vec![10, 11])
     }
 }
