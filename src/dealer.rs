@@ -85,7 +85,7 @@ impl Hand {
         }
     }
 
-    fn get_score(&self) -> u32 {
+    pub fn get_score(&self) -> u32 {
         let mut ranks = Vec::with_capacity(Hand::MAX_HAND_SIZE);
         for card in &self.cards {
             ranks.push(resolve_rank(&card.rank))
@@ -143,7 +143,7 @@ impl Dealer {
     pub fn hit<'a>(&'a mut self, hand: &'a mut Hand) -> &mut Hand {
         hand.cards.push(self.pop_card());
         println!("Hit! New hand: {:?}", hand.get_score());
-        print_collection(&hand.cards);
+        self.print_hand(&hand.cards);
         hand
     }
 
@@ -155,26 +155,35 @@ impl Dealer {
         dealer_hand.cards.push(self.pop_card());
 
         println!("Dealer's hand: {:?}", &dealer_hand.get_score());
-        print_collection(&dealer_hand.cards);
+        self.print_hand(&dealer_hand.cards);
 
         player_hand.cards.push(self.pop_card());
         dealer_hand.cards.push(self.pop_card());
 
         println!("Player's hand: {:?}", &dealer_hand.get_score());
-        print_collection(&dealer_hand.cards);
+        self.print_hand(&dealer_hand.cards);
 
         (dealer_hand, player_hand)
+    }
+
+    pub fn deal<'a>(&'a mut self, hand: &'a mut Hand) -> &mut Hand {
+        hand.cards.push(self.pop_card());
+        hand
     }
 
     fn pop_card(&mut self) -> Card {
         self.deck.cards.pop().unwrap()
     }
-}
 
-fn print_collection<T: Debug>(collection: &[T]) {
-    for element in collection {
-        println!("{:?}", element);
+    pub fn print_hand<T: Debug>(&mut self, collection: &[T]) {
+        for element in collection {
+            println!("{:?}", element);
+        }
+        print_newline()
     }
+}
+fn print_newline() {
+    println!("\n")
 }
 
 fn resolve_rank(rank: &Rc<Rank>) -> u32 {
