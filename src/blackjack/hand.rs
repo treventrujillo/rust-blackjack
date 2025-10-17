@@ -29,6 +29,7 @@ impl Hand {
     }
 
     /// Returns true if the hand is empty
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.cards.is_empty()
     }

@@ -19,6 +19,7 @@ impl Player {
     }
 
     /// Returns a mutable reference to the player's hand
+    #[allow(dead_code)]
     pub fn hand_mut(&mut self) -> &mut Hand {
         &mut self.hand
     }
