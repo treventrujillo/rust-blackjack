@@ -1,76 +1,83 @@
-mod dealer;
+// Core type definitions
+mod types;
+
+// Game components
 mod deck;
+mod hand;
+mod player;
+mod dealer;
 
-use std::error::Error;
-use std::io;
-use crate::blackjack::dealer::Dealer;
+// Game logic
+mod game;
 
-pub fn play() -> Result<(), Box<dyn Error>> {
-    println!("~*~*~*~ IT'S TIME TO GAMBLE ~*~*~*~");
+// I/O utilities
+mod io;
 
-    let mut dealer = Dealer::new();
-    let mut player_hand = dealer.deal_new_hand();
+// Re-export public API
+pub use game::GameEngine;
+pub use types::{Action, GameOutcome};
 
-    let mut game_over = false;
+use io::{ask_play_again, display_game_state, display_outcome, display_welcome, get_player_action};
 
-    while game_over != true {
-        let choice = get_choice().unwrap();
+/// Main entry point for playing blackjack
+pub fn play() {
+    display_welcome();
 
-        let outcome = match choice {
-            1 => stand(&mut dealer),
-            2 => Ok(0),
-            3 => Ok(0),
-            _ => panic!("Invalid choice.")
-        };
+    let mut game = GameEngine::new();
+    let mut keep_playing = true;
 
-        let resolved_outcome = outcome.expect("Failed to retrieve outcome.");
-
-        // 0: Round continues
-        // 1: Dealer wins
-        // 2: Player wins
-        // TODO: Make this integer an enum for cohesion
-        if resolved_outcome == 0 {
-            println!("Round continues.");
-        } else if resolved_outcome == 1 {
-            println!("Dealer wins! Round over.");
-            game_over = true;
-        } else if resolved_outcome == 2 {
-            println!("Player wins! Round over.");
-            game_over = true;
-        } else {
-            panic!("Invalid outcome {}", resolved_outcome);
+    while keep_playing {
+        // Check if deck is running low, reset if needed
+        if game.cards_remaining() < 15 {
+            println!("\n[Shuffling new deck...]");
+            game.reset_deck();
         }
+
+        // Deal initial cards
+        game.deal_initial_cards();
+
+        // Show initial game state (hide one dealer card)
+        display_game_state(game.player(), game.dealer(), true);
+
+        // Check for immediate blackjacks
+        if game.outcome() != GameOutcome::InProgress {
+            display_outcome(game.outcome(), game.player(), game.dealer());
+            keep_playing = ask_play_again();
+            continue;
+        }
+
+        // Player's turn
+        loop {
+            // Only allow double down on first action (when player has exactly 2 cards)
+            let allow_double_down = game.player().hand().len() == 2;
+
+            match get_player_action(allow_double_down) {
+                Ok(action) => {
+                    let outcome = game.execute_action(action);
+
+                    if action == Action::Stand || action == Action::DoubleDown {
+                        // Game is over, show final results
+                        display_outcome(outcome, game.player(), game.dealer());
+                        break;
+                    } else {
+                        // Player hit, show updated game state
+                        display_game_state(game.player(), game.dealer(), true);
+
+                        if outcome != GameOutcome::InProgress {
+                            // Player busted
+                            display_outcome(outcome, game.player(), game.dealer());
+                            break;
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("Error: {}", e);
+                }
+            }
+        }
+
+        keep_playing = ask_play_again();
     }
 
-    Ok(())
-}
-
-fn stand(dealer: &mut Dealer) -> Result<u8, Box<dyn Error>> {
-    dealer.deal_self().expect("Failed to deal self!");
-
-    let dealer_hand = dealer.hand.as_ref().expect("No hand found!");
-    let score = dealer_hand.get_score();
-
-    println!("\nDealer's hand: {:?}", score);
-    dealer.print_hand(&dealer_hand.cards);
-
-    if score == 21 {
-        Ok(1)
-    } else if score > 21 {
-        Ok(2)
-    } else {
-        Ok(0)
-    }
-}
-
-fn get_choice() -> Result<u8, Box<dyn Error>> {
-    println!("\nStand: 1\nHit: 2\nDouble: 3\n");
-
-    let mut input = String::new();
-    io::stdin().read_line(&mut input).expect("Failed to parse user input.");
-
-    match input.trim().parse::<u8>() {
-        Ok(value) => Ok(value),
-        Err(e) => Err(Box::new(e))
-    }
+    println!("\nThanks for playing!");
 }
